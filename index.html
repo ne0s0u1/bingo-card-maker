@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Bingo Generator - AI Powered</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+
+        /* Mode Switcher Active State */
+        .mode-btn.active {
+            background-color: white;
+            color: #111827; /* gray-900 */
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .mode-btn {
+            color: #6b7280; /* gray-500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 h-screen flex overflow-hidden" onclick="closeAllDropdowns(event)">
+
+    <!-- 1. LEFT SIDEBAR (Navigation) -->
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex z-20 flex-shrink-0">
+        <div class="p-6 flex items-center gap-3">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
+                <i class="fa-solid fa-table-cells"></i>
+            </div>
+            <span class="font-bold text-lg tracking-tight text-gray-900">BingoMaker</span>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-1 mt-4">
+            <a href="#" class="flex items-center gap-3 px-3 py-3 bg-indigo-50 text-indigo-700 rounded-lg font-medium transition-colors border border-indigo-100">
+                <i class="fa-solid fa-wand-magic-sparkles w-5 text-center"></i>
+                AI Card Generator
+            </a>
+            <!-- My Word Lists removed -->
+        </nav>
+        
+        <!-- NEW: Last Generated Prompt Viewer -->
+        <div class="px-4 pb-2 mt-auto">
+            <div class="flex items-center justify-between mb-1 px-1">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Prompt</span>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('debugPromptText').value)" class="text-[10px] text-gray-400 hover:text-indigo-600 transition" title="Copy to Clipboard">
+                    <i class="fa-regular fa-copy"></i>
+                </button>
+            </div>
+            <textarea id="debugPromptText" readonly class="w-full h-24 bg-gray-900 text-green-400 font-mono text-[10px] p-2 rounded-lg border border-gray-800 shadow-inner outline-none resize-none custom-scrollbar" placeholder="Waiting for AI generation..."></textarea>
+        </div>
+
+        <!-- Debug Log Console -->
+        <div class="px-4 pb-2">
+            <div class="flex items-center justify-between mb-1 px-1">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">System Log</span>
+                <button onclick="clearDebugLog()" class="text-[10px] text-gray-400 hover:text-gray-600 transition" title="Clear Log">
+                    <i class="fa-solid fa-eraser"></i>
+                </button>
+            </div>
+            <div class="bg-gray-900 rounded-lg p-2 h-24 overflow-y-auto custom-scrollbar border border-gray-800 shadow-inner">
+                <div id="debugLog" class="space-y-1 font-mono text-[10px] leading-tight">
+                    <p class="text-gray-500">Ready.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Key Settings -->
+        <div class="p-4 border-t border-gray-200">
+            <!-- Model Selector -->
+            <div class="mb-3">
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Image Model</label>
+                <div class="relative">
+                    <select id="imageModelSelect" class="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-colors hover:bg-white hover:border-gray-300">
+                        <option value="gemini-3-pro-image-preview">Gemini 3 Pro Image</option>
+                        <option value="gpt-4o-image" selected>GPT-4o Image</option>
+                    </select>
+                    <i class="fa-solid fa-microchip absolute left-2.5 top-2.5 text-gray-400 text-xs pointer-events-none"></i>
+                    <i class="fa-solid fa-chevron-down absolute right-2.5 top-2.5 text-gray-400 text-[10px] pointer-events-none"></i>
+                </div>
+            </div>
+
+            <div class="relative">
+                <button onclick="event.stopPropagation(); document.getElementById('apiKeyPopover').classList.toggle('hidden')" class="flex items-center gap-3 px-3 py-2.5 w-full text-left text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                    <i class="fa-solid fa-gear w-5 text-center text-gray-400"></i>
+                    <span class="text-sm font-medium">API Settings</span>
+                </button>
+                
+                <!-- Popover -->
+                <div id="apiKeyPopover" class="hidden absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-200 shadow-xl rounded-lg p-4 z-50" onclick="event.stopPropagation()">
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-2">APIMart API Key</label>
+                    <input type="password" id="apiKey" placeholder="Bearer Token..." class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none">
+                    <p class="text-xs text-gray-400 mt-2">Key stored locally.</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT CONTAINER (Split 50/50) -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- 2. MIDDLE COLUMN (Input Parameters) -->
+        <main class="w-1/2 bg-white border-r border-gray-200 flex flex-col h-full z-10 shadow-sm relative">
+            
+            <!-- Removed Header Mode Switcher -->
+            <div class="h-20 px-8 border-b border-gray-100 flex items-center justify-start shrink-0 bg-white">
+                <h2 class="text-xl font-bold text-gray-900">Create Bingo Card</h2>
+            </div>
+
+            <!-- Scrollable Form Area -->
+            <div class="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                
+                <!-- SECTION 1: Game Info -->
+                <section class="space-y-4">
+                    <div class="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <span class="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">1</span>
+                        Game Setup
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Bingo Title</label>
+                            <input type="text" id="bingoTitle" placeholder="e.g. 90s Pop Bingo" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-1.5">
+                                <label class="block text-sm font-medium text-gray-700">Word/Song List</label>
+                                <span class="text-xs text-gray-400" id="itemCount">0 items</span>
+                            </div>
+                            <textarea id="wordList" rows="8" placeholder="Enter items one per line...&#10;Wonderwall&#10;Bohemian Rhapsody&#10;Hey Jude&#10;..." class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none font-mono" oninput="updateCount()"></textarea>
+                            <p class="text-xs text-gray-400 mt-1">Tip: Need at least 9 items for 3x3, 16 for 4x4.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <hr class="border-gray-100">
+
+                <!-- SECTION 2: Grid & Style -->
+                <section class="space-y-5">
+                    <div class="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <span class="w-5 h-5 rounded bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">2</span>
+                        Design & Grid
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-5">
+                        <!-- Grid Size -->
+                        <div class="col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Grid Size</label>
+                            <select id="gridSize" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-indigo-500 outline-none cursor-pointer hover:bg-gray-50 transition-colors">
+                                <option value="3x3">3x3 (9 Cells)</option>
+                                <option value="4x4">4x4 (16 Cells)</option>
+                                <option value="5x5">5x5 (25 Cells)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Center Square Options -->
+                        <div class="col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Center Square</label>
+                            <select id="centerSquare" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-indigo-500 outline-none cursor-pointer hover:bg-gray-50 transition-colors" onchange="toggleCustomCenter(this.value)">
+                                <option value="Random Word">Random Word (No Center)</option>
+                                <option value="Star Icon">★ Star Icon</option>
+                                <option value="Music Note">♫ Music Note</option>
+                                <option value="Microphone">🎤 Microphone</option>
+                                <option value="Vinyl Record">💿 Vinyl Record</option>
+                                <option value="Custom">Custom Icon...</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Custom Center Prompt (Hidden by default) -->
+                        <div id="customCenterContainer" class="col-span-2 hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Custom Center Icon</label>
+                            <input type="text" id="customCenterPrompt" placeholder="e.g. A cool cat with sunglasses" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
+                        </div>
+
+                        <!-- Theme Style -->
+                        <div class="col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Visual Theme</label>
+                            <select id="themeStyle" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-indigo-500 outline-none cursor-pointer hover:bg-gray-50 transition-colors" onchange="toggleCustomTheme(this.value)">
+                                <option value="Classic Minimal">Classic Minimal (Black/White)</option>
+                                <option value="Retro 80s">Retro 80s (Neon/Geometry)</option>
+                                <option value="Vintage Paper">Vintage Paper (Texture)</option>
+                                <option value="Elegant Gold">Elegant Gold (Luxury)</option>
+                                <option value="Dark Mode">Dark Mode (Night Club)</option>
+                                <option value="Kids Cartoon">Kids Cartoon (Colorful)</option>
+                                <option value="Custom">Custom Theme...</option>
+                            </select>
+                        </div>
+
+                        <!-- Custom Theme Prompt (Hidden by default) -->
+                        <div id="customThemeContainer" class="col-span-2 hidden">
+                            <label class="block text-sm font-medium text-gray-700 mb-1.5">Custom Theme Description</label>
+                            <input type="text" id="customThemePrompt" placeholder="e.g. Cyberpunk Neon City with rain" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Spacer for scrolling -->
+                <div class="h-12"></div>
+            </div>
+
+            <!-- Sticky Footer Button -->
+            <div class="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-100 z-20">
+                <button onclick="startBingoWorkflow()" id="generateBtn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transform active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 text-base">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Generate Bingo Card</span>
+                </button>
+            </div>
+        </main>
+
+        <!-- 3. RIGHT COLUMN (Result Display) -->
+        <section class="w-1/2 bg-gray-100 flex flex-col relative overflow-hidden h-full border-l border-gray-200">
+            
+            <!-- Right Column Header -->
+            <div class="h-20 px-8 flex flex-col items-center justify-center shrink-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-10">
+                <h1 class="text-xl font-bold text-gray-900 tracking-tight">Preview & History</h1>
+                <p class="text-xs text-gray-500 font-medium mt-0.5">Generated Cards</p>
+            </div>
+
+            <!-- History Container -->
+            <div id="historyContainer" class="flex-1 overflow-y-auto bg-gray-50 relative custom-scrollbar">
+                
+                <div id="historyList" class="flex flex-col w-full p-2 space-y-3">
+                    <!-- Loading State -->
+                    <div id="loadingCard" class="hidden w-full bg-white rounded-xl shadow-sm border border-gray-200 animate-pulse p-2">
+                        <div class="w-full aspect-[3/4] bg-gray-100 rounded-lg flex items-center justify-center mb-2">
+                            <div class="flex flex-col items-center">
+                                <div class="w-10 h-10 border-4 border-gray-200 rounded-full border-t-indigo-600 animate-spin mb-2"></div>
+                                <span id="statusText" class="text-xs font-bold text-indigo-600 uppercase tracking-wide">Initializing...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-gray-400 min-h-[400px]">
+                    <div class="w-16 h-16 bg-gray-200/50 rounded-full flex items-center justify-center mb-4">
+                        <i class="fa-solid fa-table-cells text-2xl text-gray-300"></i>
+                    </div>
+                    <p class="text-sm font-medium">No cards generated yet.</p>
+                </div>
+
+            </div>
+        </section>
+    </div>
+
+<script>
+    // --- Global Helpers ---
+    function closeAllDropdowns(event) {
+        const popover = document.getElementById('apiKeyPopover');
+        if (popover && !popover.classList.contains('hidden')) popover.classList.add('hidden');
+        document.querySelectorAll('.card-menu').forEach(menu => menu.classList.add('hidden'));
+    }
+
+    function clearDebugLog() {
+        document.getElementById('debugLog').innerHTML = '<p class="text-gray-500">Ready.</p>';
+    }
+
+    function updateCount() {
+        const text = document.getElementById('wordList').value;
+        const count = text.split(/\n/).filter(line => line.trim() !== '').length;
+        document.getElementById('itemCount').innerText = `${count} items`;
+    }
+
+    function toggleCustomCenter(val) {
+        const container = document.getElementById('customCenterContainer');
+        if (val === 'Custom') {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    function toggleCustomTheme(val) {
+        const container = document.getElementById('customThemeContainer');
+        if (val === 'Custom') {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    function addToLog(msg, type = 'info') {
+        const logDiv = document.getElementById('debugLog');
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        const p = document.createElement('p');
+        
+        let colorClass = 'text-gray-300';
+        if (type === 'error') colorClass = 'text-red-400 font-bold';
+        if (type === 'success') colorClass = 'text-green-400';
+        if (type === 'step') colorClass = 'text-indigo-300 font-bold';
+
+        p.className = `${colorClass} break-words`;
+        p.innerHTML = `<span class="text-gray-600 mr-1">[${time}]</span>${msg}`;
+        
+        logDiv.appendChild(p);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    // --- Mock Data Injection ---
+    const mockData = [
+        { title: "80s Rock Bingo", theme: "Retro 80s", size: "4x4", date: "2025-10-24", url: "https://picsum.photos/seed/bingo1/600/800" },
+        { title: "Movie Night", theme: "Classic Minimal", size: "5x5", date: "2025-10-23", url: "https://picsum.photos/seed/bingo2/600/800" }
+    ];
+
+    window.onload = () => {
+        const historyList = document.getElementById('historyList');
+        mockData.forEach(item => {
+            addHistoryItem(item.url, item.title, item.theme, item.size, "Mock Prompt", item.date);
+        });
+        if(historyList.children.length > 0) document.getElementById('emptyState').classList.add('hidden');
+        else document.getElementById('emptyState').classList.remove('hidden');
+    };
+
+    // --- Bingo System Prompt ---
+    const BINGO_SYSTEM_PROMPT = `You are an expert Graphic Designer for Game Materials.
+Your goal is to write a precise image generation prompt to create a **Music Bingo Card**.
+
+### INPUTS:
+- **Title**: {TITLE}
+- **Words**: {WORD_LIST}
+- **Grid Size**: {GRID_SIZE}
+- **Center**: {CENTER_SQUARE}
+- **Custom Icon**: {CUSTOM_CENTER}
+- **Theme**: {THEME}
+
+### INSTRUCTIONS:
+1.  **Layout**: Request a clear, high-resolution, top-down view of a printed Bingo card. 
+2.  **Grid**: Specify a {GRID_SIZE} grid (e.g. 3x3 means 9 cells, 4x4 means 16 cells). The grid lines must be visible and neat.
+3.  **Content (CRITICAL)**: 
+    * Instruct the model to render the text "{TITLE}" clearly at the top as a header.
+    * Instruct the model to fill the grid cells with the provided words: {WORD_LIST}. **NOTE: If the list is too long, select a random subset to fit the grid.** * **Center Square Logic**:
+      - If Center is "Random Word", just treat it as a normal cell.
+      - If Center is "Custom", instruct the model to place a "{CUSTOM_CENTER}" icon/illustration in the exact middle cell (only for odd grids like 3x3, 5x5).
+      - If Center is a preset (Star, Note, etc.), instruct to place that specific icon in the middle.
+4.  **Style**: Apply the {THEME} aesthetic (e.g. Retro 80s = Neon borders, dark background; Minimal = Black lines on white paper).
+5.  **Quality**: Ensure text is legible, "render text" capabilities are utilized.
+
+### OUTPUT FORMAT:
+Return **ONLY** the raw prompt text.`;
+
+    // --- Main Workflow ---
+    async function startBingoWorkflow() {
+        const apiKey = document.getElementById('apiKey').value.trim();
+        if (!apiKey) { alert('Please enter API Key'); return; }
+
+        const title = document.getElementById('bingoTitle').value.trim();
+        const rawWords = document.getElementById('wordList').value.trim();
+        const gridSize = document.getElementById('gridSize').value;
+        const center = document.getElementById('centerSquare').value;
+        const customCenter = document.getElementById('customCenterPrompt').value.trim();
+        
+        let theme = document.getElementById('themeStyle').value;
+        const customTheme = document.getElementById('customThemePrompt').value.trim();
+        if (theme === 'Custom' && customTheme) {
+            theme = `Custom Style: ${customTheme}`;
+        }
+
+        const model = document.getElementById('imageModelSelect').value;
+
+        if (!title || !rawWords) { alert('Please enter Title and Word List'); return; }
+        
+        // Basic validation of word count
+        const words = rawWords.split(/\n/).filter(w => w.trim() !== '');
+        
+        // UI Loading
+        const historyList = document.getElementById('historyList');
+        const loadingCard = document.getElementById('loadingCard');
+        const btn = document.getElementById('generateBtn');
+        const emptyState = document.getElementById('emptyState');
+
+        emptyState.classList.add('hidden');
+        loadingCard.classList.remove('hidden');
+        historyList.insertBefore(loadingCard, historyList.firstChild);
+        document.getElementById('historyContainer').scrollTop = 0;
+        
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin animate-spin"></i><span class="ml-2">Designing Card...</span>`;
+        
+        document.getElementById('debugLog').innerHTML = '';
+        addToLog(`Generating Bingo Card: ${title} (${gridSize})`, "step");
+
+        try {
+            // 1. Text API -> Prompt
+            const promptTemplate = BINGO_SYSTEM_PROMPT
+                .replace('{TITLE}', title)
+                .replace('{WORD_LIST}', words.join(', '))
+                .replace('{GRID_SIZE}', gridSize)
+                .replace('{CENTER_SQUARE}', center)
+                .replace('{CUSTOM_CENTER}', center === 'Custom' ? customCenter : '')
+                .replace('{THEME}', theme);
+
+            addToLog("Step 1: Constructing layout instructions...");
+            
+            const textResponse = await fetch('https://api.apimart.ai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model: "gemini-2.5-flash", // Use fast model for prompt logic
+                    messages: [{ role: "user", content: promptTemplate }],
+                    stream: false,
+                    temperature: 0.7
+                })
+            });
+            
+            const textData = await textResponse.json();
+            if (!textResponse.ok) throw new Error(textData.error?.message || "Text API failed");
+            const finalPrompt = textData.choices[0].message.content;
+            
+            document.getElementById('debugPromptText').value = finalPrompt;
+            addToLog("Layout instructions ready.", "success");
+
+            // 2. Image API -> Generate
+            addToLog(`Step 2: Rendering with ${model}...`, "step");
+            
+            const imgResponse = await fetch('https://api.apimart.ai/v1/images/generations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model: model,
+                    prompt: finalPrompt,
+                    size: "3:4", 
+                    n: 1
+                })
+            });
+            
+            const imgData = await imgResponse.json();
+            if (!imgResponse.ok || (imgData.code !== 200 && imgData.code !== 0)) {
+                throw new Error(imgData.message || "Image API failed");
+            }
+            const taskId = imgData.data[0].task_id;
+            
+            // 3. Polling
+            addToLog(`Task ID: ${taskId}. Waiting for ink to dry...`);
+            
+            const pollInterval = setInterval(async () => {
+                try {
+                    const pollRes = await fetch(`https://api.apimart.ai/v1/tasks/${taskId}`, {
+                        method: 'GET',
+                        headers: { 'Authorization': `Bearer ${apiKey}` }
+                    });
+                    const pollData = await pollRes.json();
+                    
+                    if (pollData.data && pollData.data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        const imgUrl = Array.isArray(pollData.data.result.images[0].url) 
+                            ? pollData.data.result.images[0].url[0] 
+                            : pollData.data.result.images[0].url;
+                        
+                        addToLog("Card Generated!", "success");
+                        
+                        // Add to History
+                        const now = new Date().toISOString().substring(0, 10);
+                        addHistoryItem(imgUrl, title, theme, gridSize, finalPrompt, now);
+                        
+                        // Cleanup
+                        loadingCard.classList.add('hidden');
+                        document.getElementById('historyContainer').appendChild(loadingCard); // Move to bottom hidden
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate Bingo Card</span>`;
+                        
+                    } else if (pollData.data && (pollData.data.status === 'failed' || pollData.data.status === 'cancelled')) {
+                        clearInterval(pollInterval);
+                        throw new Error("Generation failed");
+                    }
+                } catch (e) {
+                    clearInterval(pollInterval);
+                    addToLog("Error during polling: " + e.message, "error");
+                    alert("Polling Error");
+                    btn.disabled = false;
+                    loadingCard.classList.add('hidden');
+                    btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate Bingo Card</span>`;
+                }
+            }, 3000);
+
+        } catch (e) {
+            addToLog("Error: " + e.message, "error");
+            alert("Workflow Failed: " + e.message);
+            loadingCard.classList.add('hidden');
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate Bingo Card</span>`;
+        }
+    }
+
+    function addHistoryItem(imageUrl, title, theme, size, prompt, date) {
+        const historyList = document.getElementById('historyList');
+        const uniqueId = 'card-' + Date.now();
+        const menuId = 'menu-' + uniqueId;
+        
+        const card = document.createElement('div');
+        card.className = "w-full bg-white border-b border-gray-200 animate-fade-in-down pb-6";
+        
+        card.innerHTML = `
+            <div class="px-2 pt-2">
+                <!-- Title & Menu -->
+                <div class="flex items-start justify-between gap-2">
+                    <h3 class="font-bold text-gray-900 text-sm leading-tight truncate pr-2 flex-1">${title}</h3>
+                    
+                    <div class="relative">
+                        <button onclick="toggleCardMenu(event, '${menuId}')" class="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition">
+                            <i class="fa-solid fa-ellipsis"></i>
+                        </button>
+                        <div id="${menuId}" class="card-menu hidden absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 shadow-xl rounded-lg py-1 z-20">
+                            <a href="${imageUrl}" target="_blank" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                                <i class="fa-solid fa-download w-4"></i> Download
+                            </a>
+                            <button onclick="this.parentElement.parentElement.parentElement.parentElement.parentElement.remove()" class="w-full text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2">
+                                <i class="fa-solid fa-trash w-4"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tags -->
+                <div class="mt-1 mb-3 flex gap-2">
+                    <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wide rounded border border-indigo-100">${theme}</span>
+                    <span class="px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase tracking-wide rounded border border-gray-200">${size}</span>
+                </div>
+            </div>
+
+            <!-- Image -->
+            <div class="relative w-full mb-2 group bg-gray-100 border border-gray-100">
+                <img src="${imageUrl}" class="w-full h-auto object-cover" alt="${title}">
+            </div>
+            
+            <div class="px-2 pb-2">
+                <div class="flex items-center text-[10px] text-gray-400">
+                    <span>${date}</span>
+                </div>
+            </div>
+        `;
+        
+        historyList.insertBefore(card, historyList.firstChild);
+    }
+
+    function toggleCardMenu(event, menuId) {
+        event.stopPropagation();
+        document.querySelectorAll('.card-menu').forEach(menu => {
+            if (menu.id !== menuId) menu.classList.add('hidden');
+        });
+        document.getElementById(menuId).classList.toggle('hidden');
+    }
+</script>
+
+</body>
+</html>
