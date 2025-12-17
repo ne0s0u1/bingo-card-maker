@@ -166,7 +166,7 @@
                         <div class="col-span-1">
                             <label class="block text-sm font-medium text-gray-700 mb-1.5">Center Square</label>
                             <select id="centerSquare" class="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:border-indigo-500 outline-none cursor-pointer hover:bg-gray-50 transition-colors" onchange="toggleCustomCenter(this.value)">
-                                <option value="Random Word">Random Word (No Center)</option>
+                                <option value="Random Word">No Center</option>
                                 <option value="Star Icon">★ Star Icon</option>
                                 <option value="Music Note">♫ Music Note</option>
                                 <option value="Microphone">🎤 Microphone</option>
@@ -320,7 +320,7 @@
         else document.getElementById('emptyState').classList.remove('hidden');
     };
 
-    // --- Bingo System Prompt ---
+    // --- Bingo System Prompt (Optimized for Geometry) ---
     const BINGO_SYSTEM_PROMPT = `You are an expert Graphic Designer for Game Materials.
 Your goal is to write a precise image generation prompt to create a **Music Bingo Card**.
 
@@ -334,14 +334,25 @@ Your goal is to write a precise image generation prompt to create a **Music Bing
 
 ### INSTRUCTIONS:
 1.  **Layout**: Request a clear, high-resolution, top-down view of a printed Bingo card. 
-2.  **Grid**: Specify a {GRID_SIZE} grid (e.g. 3x3 means 9 cells, 4x4 means 16 cells). The grid lines must be visible and neat.
-3.  **Content (CRITICAL)**: 
-    * Instruct the model to render the text "{TITLE}" clearly at the top as a header.
-    * Instruct the model to fill the grid cells with the provided words: {WORD_LIST}. **NOTE: If the list is too long, select a random subset to fit the grid.** * **Center Square Logic**:
-      - If Center is "Random Word", just treat it as a normal cell.
-      - If Center is "Custom", instruct the model to place a "{CUSTOM_CENTER}" icon/illustration in the exact middle cell (only for odd grids like 3x3, 5x5).
-      - If Center is a preset (Star, Note, etc.), instruct to place that specific icon in the middle.
+
+2.  **Grid Structure (CRITICAL)**: 
+    * You must enforce a strict **{GRID_SIZE} table layout**.
+    * **If 3x3**: Create exactly 3 columns by 3 rows (Total 9 cells).
+    * **If 4x4**: Create exactly 4 columns by 4 rows (Total 16 cells).
+    * **If 5x5**: Create exactly 5 columns by 5 rows (Total 25 cells).
+    * The grid must be a perfect square. Do NOT generate extra rows or columns.
+
+3.  **Content**: 
+    * **Header**: Render the text "{TITLE}" clearly at the top.
+    * **Cells**: Fill the grid cells with the provided words: {WORD_LIST}.
+    * **Center Square Logic**:
+        - If Center is "Random Word", treat it as a normal cell.
+        - If Center is "Custom", place a "{CUSTOM_CENTER}" icon in the exact center cell.
+        - If Center is a preset (Star, Note, etc.), place that specific icon in the center.
+        - *Note: Center icons only apply to odd grids (3x3, 5x5).*
+
 4.  **Style**: Apply the {THEME} aesthetic (e.g. Retro 80s = Neon borders, dark background; Minimal = Black lines on white paper).
+
 5.  **Quality**: Ensure text is legible, "render text" capabilities are utilized.
 
 ### OUTPUT FORMAT:
